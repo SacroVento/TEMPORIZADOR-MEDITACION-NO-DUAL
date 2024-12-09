@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporizador de Meditación</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #032047;
+        }
+        #start {
+            background-color: #c79a37;
+            color: #ffffff;
+        }
+        #pause {
+            background-color: #032047;
+            color: #ffffff;
+        }
+        #reset {
+            background-color: #a6a6a6;
+            color: #ffffff;
+        }
+        #save-experience {
+            background-color: #c79a37;
+            color: #ffffff;
+        }
+        #print {
+            background-color: #032047;
+            color: #ffffff;
+        }
+        #clear-history {
+            background-color: #c7381a;
+            color: #ffffff;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            border: 2px solid #c79a37;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            width: 80%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .modal h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #032047;
+        }
+        .modal p {
+            font-size: 1.25rem;
+            margin: 15px 0;
+        }
+        .modal button {
+            background-color: #c79a37;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4">
+    <!-- Encabezado con la imagen -->
+    <div class="text-center mb-6">
+        <img src="MEDITACION NO DUAL.png" alt="Meditación No Dual" class="w-full max-w-3xl mx-auto">
+    </div>
+
+    <!-- Configuración del temporizador -->
+    <div class="text-center mb-6">
+        <label for="meditation-time" class="block text-lg font-bold">Elige el tiempo por fase (en minutos):</label>
+        <input id="meditation-time" type="number" min="1" max="120" value="15" class="border border-gray-300 rounded px-2 py-1 text-center w-24">
+        <p class="mt-2">Cada meditación tendrá 4 fases de igual duración con 1 minuto de descanso entre ellas.</p>
+    </div>
+
+    <!-- Temporizador -->
+    <div id="timer-container" class="text-center mb-6">
+        <div id="timer-phase" class="text-2xl font-bold mb-2">Fase 1 de 4</div>
+        <div id="timer" class="text-6xl font-mono mb-4" style="color: #032047;">15:00</div>
+        <div class="flex justify-center gap-4">
+            <button id="start" class="px-4 py-2 rounded hover:opacity-90">Iniciar</button>
+            <button id="pause" class="px-4 py-2 rounded hover:opacity-90">Pausar</button>
+            <button id="reset" class="px-4 py-2 rounded hover:opacity-90">Reiniciar</button>
+        </div>
+    </div>
+
+    <!-- Espacio para escribir la experiencia -->
+    <div class="w-full max-w-3xl mb-6">
+        <h2 class="text-xl font-bold mb-4">Escribe sobre tu experiencia</h2>
+        <textarea id="experience" rows="4" class="w-full border border-gray-300 rounded px-2 py-1" placeholder="Comparte cómo te sentiste durante la meditación..."></textarea>
+        <button id="save-experience" class="px-4 py-2 rounded hover:opacity-90 mt-4">Guardar Experiencia</button>
+    </div>
+
+    <!-- Registro de meditaciones -->
+    <div class="w-full max-w-3xl mb-6">
+        <h2 class="text-xl font-bold mb-4">Registro de Meditaciones</h2>
+        <table class="table-auto w-full border-collapse border border-gray-300">
+            <thead>
+                <tr>
+                    <th class="border border-gray-300 px-4 py-2">Fecha</th>
+                    <th class="border border-gray-300 px-4 py-2">Hora</th>
+                    <th class="border border-gray-300 px-4 py-2">Tiempo por fase</th>
+                    <th class="border border-gray-300 px-4 py-2">Tiempo total</th>
+                    <th class="border border-gray-300 px-4 py-2">Experiencia</th>
+                </tr>
+            </thead>
+            <tbody id="meditation-log">
+                <!-- Los datos se añadirán aquí dinámicamente -->
+            </tbody>
+        </table>
+        <button id="clear-history" class="px-4 py-2 rounded hover:opacity-90 mt-4">Borrar historial</button>
+    </div>
+
+    <!-- Rango de fechas e impresión -->
+    <div class="w-full max-w-3xl mb-6">
+        <h2 class="text-xl font-bold mb-4">Imprimir registro de meditaciones</h2>
+        <label for="start-date" class="block font-bold">Desde:</label>
+        <input type="date" id="start-date" class="border border-gray-300 rounded px-2 py-1 mb-4">
+        <label for="end-date" class="block font-bold">Hasta:</label>
+        <input type="date" id="end-date" class="border border-gray-300 rounded px-2 py-1 mb-4">
+        <button id="print" class="px-4 py-2 rounded hover:opacity-90">Imprimir</button>
+    </div>
+
+    <!-- Modal para el mensaje final -->
+    <div id="modal" class="modal hidden">
+        <h2 id="modal-title"></h2>
+        <p id="modal-message"></p>
+        <button id="close-modal">Cerrar</button>
+    </div>
+
+    <!-- Sonidos -->
+    <audio id="start-end-sound">
+        <source src="BOTÓN DE INICIO Y DE FINAL.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="phase-transition-sound">
+        <source src="Sonido entre Fases.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="pause-reset-sound">
+        <source src="Sonido pausa y reinicio.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const meditationTimeInput = document.getElementById('meditation-time');
+        const timerDisplay = document.getElementById('timer');
+        const timerPhase = document.getElementById('timer-phase');
+        const startButton = document.getElementById('start');
+        const pauseButton = document.getElementById('pause');
+        const resetButton = document.getElementById('reset');
+        const clearHistoryButton = document.getElementById('clear-history');
+        const experience = document.getElementById('experience');
+        const saveExperienceButton = document.getElementById('save-experience');
+        const startEndSound = document.getElementById('start-end-sound');
+        const phaseTransitionSound = document.getElementById('phase-transition-sound');
+        const pauseResetSound = document.getElementById('pause-reset-sound');
+        const printButton = document.getElementById('print');
+        const meditationLog = document.getElementById('meditation-log');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const closeModal = document.getElementById('close-modal');
+
+        let isRunning = false;
+        let timerInterval;
+        let meditationTime = 15 * 60;
+        let timeRemaining = meditationTime;
+        let phase = 1;
+        const totalPhases = 4;
+        const restTime = 60;
+        let isMeditationPhase = true;
+
+        const motivationalMessages = [
+            "¡Qué bien lo has hecho! 🌟 Sigue adelante, ¡la práctica hace al maestro! 🧘",
+            "Eres un ser de luz radiante. ✨ Encuentra gratitud en este momento. 🙏",
+            "La paz interior es tuya. 🕊️ Cada respiración cuenta. 🌬️",
+            "¡Maravillosa meditación! 🌸 Sigue cultivando tu bienestar. 🌿",
+            "Tu constancia inspira. 🌞 Hoy es un gran día para la calma. 💫",
+            "Continúa explorando tu ser. 🌎 Cada paso te acerca más a la paz interior. ❤️",
+            "Tu energía se renueva. 🔆 Este momento es todo tuyo. 🕰️",
+            "Eres fuerte y sereno. 💪 Tu paz beneficia a todos. 🌊",
+            "Disfruta la tranquilidad alcanzada. 😌 Sigue floreciendo. 🌷",
+            "Meditación completada con éxito. 🎉 ¡Gran trabajo! 🏆",
+            "Encuentra alegría en la calma. 😊 Hoy sembraste calma. 🌱",
+            "Qué serenidad tan bella. 🌙 Brillas como nunca. ✨"
+        ];
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            timerDisplay.textContent = formatTime(timeRemaining);
+        }
+
+        function updatePhaseDisplay() {
+            timerPhase.textContent = isMeditationPhase ? `Fase ${phase} de ${totalPhases}` : "Pausa de un minuto";
+        }
+
+        function displayModal() {
+            modal.classList.remove('hidden');
+            const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+            modalTitle.textContent = "¡Enhorabuena!";
+            modalMessage.textContent = randomMessage;
+        }
+
+        function transitionPhase() {
+            if (isMeditationPhase) {
+                timeRemaining = restTime;
+                isMeditationPhase = false;
+                phaseTransitionSound.play();
+            } else {
+                phase++;
+                timeRemaining = meditationTime;
+                isMeditationPhase = true;
+
+                if (phase > totalPhases) {
+                    startEndSound.play();
+                    displayModal();
+                    resetTimer();
+                    return;
+                }
+            }
+            updatePhaseDisplay();
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            timerInterval = setInterval(() => {
+                if (timeRemaining > 0) {
+                    timeRemaining--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    transitionPhase();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            pauseResetSound.play();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            meditationTime = parseInt(meditationTimeInput.value) * 60;
+            timeRemaining = meditationTime;
+            phase = 1;
+            isMeditationPhase = true;
+            updatePhaseDisplay();
+            updateTimerDisplay();
+        }
+
+        startButton.addEventListener("click", () => {
+            startEndSound.play();
+            startTimer();
+        });
+        pauseButton.addEventListener("click", pauseTimer);
+        resetButton.addEventListener("click", resetTimer);
+
+        saveExperienceButton.addEventListener("click", () => {
+            const date = new Date().toLocaleDateString();
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const experienceText = experience.value.trim();
+            const row = `<tr>
+                <td>${date}</td>
+                <td>${time}</td>
+                <td>${meditationTimeInput.value} minutos</td>
+                <td>${meditationTimeInput.value * 4} minutos</td>
+                <td>${experienceText}</td>
+            </tr>`;
+            meditationLog.innerHTML += row;
+            experience.value = '';
+        });
+
+        printButton.addEventListener("click", () => {
+            const startDate = document.getElementById("start-date").value;
+            const endDate = document.getElementById("end-date").value;
+            const rows = Array.from(meditationLog.querySelectorAll("tr"));
+            const filteredRows = rows.filter(row => {
+                const date = row.children[0].innerText;
+                return (!startDate || date >= startDate) && (!endDate || date <= endDate);
+            });
+            const pdf = new jsPDF();
+            filteredRows.forEach((row, i) => {
+                pdf.text(row.innerText, 10, 10 + i * 10);
+            });
+            pdf.save("registro_meditaciones.pdf");
+        });
+
+        clearHistoryButton.addEventListener("click", () => {
+            meditationLog.innerHTML = '';
+        });
+
+        closeModal.addEventListener("click", () => {
+            modal.classList.add('hidden');
+        });
+
+        resetTimer();
+    </script>
+</body>
+</html>
