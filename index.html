@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporizador de Meditación</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-white text-gray-900">
+    <div class="max-w-4xl mx-auto p-4">
+        <!-- Header Image -->
+        <div class="text-center mb-4">
+            <img src="MEDITACION%20NO%20DUAL.png" alt="Meditación No Dual" class="mx-auto w-2/3">
+        </div>
+
+        <!-- Select Meditation Time -->
+        <div class="text-center mb-6">
+            <label for="meditation-time" class="block text-lg font-medium mb-2">Elige el tiempo de meditación por fase:</label>
+            <select id="meditation-time" class="px-6 py-4 text-lg border border-gray-300 rounded">
+                <script>
+                    for (let i = 1; i <= 60; i++) {
+                        document.write(`<option value="${i}">${i} minuto${i > 1 ? 's' : ''}</option>`);
+                    }
+                </script>
+            </select>
+        </div>
+
+        <!-- Timer Section -->
+        <div class="text-center mb-6">
+            <h2 id="phase-label" class="text-2xl font-bold mb-4">Fase 1 de 4</h2>
+            <div id="timer-display" class="text-6xl font-bold mb-4">00:00</div>
+            <div class="flex justify-center gap-4">
+                <button id="start-btn" class="px-6 py-2 bg-[#024499] text-white rounded">Iniciar</button>
+                <button id="pause-btn" class="px-6 py-2 bg-[#dfa5c0] text-white rounded">Pausar</button>
+                <button id="reset-btn" class="px-6 py-2 bg-gray-500 text-white rounded">Reiniciar</button>
+            </div>
+        </div>
+
+        <!-- Experience Section -->
+        <div class="mb-6">
+            <label for="experience" class="block text-lg font-medium mb-2">Registra tu experiencia:</label>
+            <textarea id="experience" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded mb-4"></textarea>
+            <button id="save-experience-btn" class="px-6 py-2 bg-gray-500 text-white rounded">Guardar</button>
+        </div>
+
+        <!-- Records Table -->
+        <div class="overflow-x-auto mb-6">
+            <table class="w-full border border-gray-300 text-left">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2 border">Fecha</th>
+                        <th class="px-4 py-2 border">Hora</th>
+                        <th class="px-4 py-2 border">Tiempo por Fase</th>
+                        <th class="px-4 py-2 border">Tiempo Total</th>
+                        <th class="px-4 py-2 border">Experiencia</th>
+                    </tr>
+                </thead>
+                <tbody id="records-body">
+                    <!-- Dynamic rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Generate PDF Button -->
+        <div class="text-center">
+            <button id="generate-pdf-btn" class="px-6 py-2 bg-gray-500 text-white rounded">Generar PDF</button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let timer;
+        let totalSeconds;
+        let currentPhase = 1;
+        const phases = 4;
+
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const timerDisplay = document.getElementById('timer-display');
+        const phaseLabel = document.getElementById('phase-label');
+        const meditationTimeSelect = document.getElementById('meditation-time');
+        const experienceTextarea = document.getElementById('experience');
+        const saveExperienceBtn = document.getElementById('save-experience-btn');
+        const recordsBody = document.getElementById('records-body');
+        const generatePdfBtn = document.getElementById('generate-pdf-btn');
+
+        const successMessages = [
+            "Felicidades por tu meditación 😊", "Increíble trabajo, sigue así 🌟", "Qué gran logro, continúa meditando 🌈", "Cada paso cuenta, bravo por ti 💖",
+            "Un momento para ti, maravilloso 🌸", "Tu serenidad se expande, felicidades 🌿", "Has dado un paso más en tu camino ✨", "Tu paz es inspiradora 💕",
+            "Hoy lograste algo especial 🌻", "Eres constancia pura, bravo 🌺", "Gran energía, sigue adelante 💪", "Tu alma agradece este tiempo 🌞",
+            "Estás brillando más cada día 🌟", "Tu disciplina es admirable 🙌", "Tu camino espiritual florece 🌷", "Un instante perfecto de paz 🍃",
+            "Tu práctica trae frutos bellos 🌹", "Tu corazón vibra en calma 🌈", "La meditación te transforma 💎", "Sigue iluminando tu interior 🕯️",
+            "Felicidades por tu dedicación 🌙", "Un momento eterno de paz 🌟", "Tu esencia resplandece 🌻", "Gran paso hacia la plenitud 🕉️",
+            "Tu calma es contagiosa 🌀", "Tu esfuerzo es poderoso 🔆", "El universo celebra contigo 🌌", "Un tiempo solo para ti 💎",
+            "Sigue avanzando en tu viaje 🚶‍♀️", "Tu práctica inspira a otros 🌟"
+        ];
+
+        function updateTimerDisplay(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function playSound(file) {
+            const audio = new Audio(file);
+            audio.play().catch((error) => {
+                console.error("Error reproduciendo el sonido: ", error);
+            });
+        }
+
+        function startTimer() {
+            const phaseTime = parseInt(meditationTimeSelect.value) * 60;
+            totalSeconds = phaseTime;
+
+            timer = setInterval(() => {
+                if (totalSeconds > 0) {
+                    totalSeconds--;
+                    updateTimerDisplay(totalSeconds);
+                } else {
+                    clearInterval(timer);
+                    if (currentPhase < phases) {
+                        playSound('Sonido%20entre%20Fases.mp3');
+                        currentPhase++;
+                        phaseLabel.textContent = `Fase ${currentPhase} de 4`;
+                        startTimer();
+                    } else {
+                        playSound('Sonido%20DE%20INICIO%20Y%20DE%20FINAL.mp3');
+                        setTimeout(() => {
+                            const message = successMessages[Math.floor(Math.random() * successMessages.length)];
+                            alert(message);
+                        }, 1000); // Reproduce el sonido antes de mostrar el mensaje
+                    }
+                }
+            }, 1000);
+        }
+
+        function saveExperience() {
+            const experience = experienceTextarea.value.trim();
+            if (!experience) {
+                alert('Por favor, escribe tu experiencia antes de guardarla.');
+                return;
+            }
+
+            const now = new Date();
+            const date = now.toLocaleDateString();
+            const time = now.toLocaleTimeString();
+            const phaseTime = meditationTimeSelect.value;
+            const totalMeditationTime = phaseTime * phases;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-2 border">${date}</td>
+                <td class="px-4 py-2 border">${time}</td>
+                <td class="px-4 py-2 border">${phaseTime} minuto${phaseTime > 1 ? 's' : ''}</td>
+                <td class="px-4 py-2 border">${totalMeditationTime} minuto${totalMeditationTime > 1 ? 's' : ''}</td>
+                <td class="px-4 py-2 border">${experience}</td>
+            `;
+            recordsBody.appendChild(row);
+
+            experienceTextarea.value = '';
+            alert('Tu experiencia ha sido guardada.');
+        }
+
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+
+            pdf.setFontSize(16);
+            pdf.text("Registro de Meditaciones", 10, 10);
+            pdf.setFontSize(12);
+
+            let rowY = 20;
+            recordsBody.querySelectorAll('tr').forEach((row) => {
+                const cells = row.querySelectorAll('td');
+                const text = Array.from(cells).map(cell => cell.textContent).join(' | ');
+                pdf.text(text, 10, rowY);
+                rowY += 10;
+            });
+
+            pdf.save("registro_meditaciones.pdf");
+        }
+
+        startBtn.addEventListener('click', () => {
+            playSound('Sonido%20entre%20Fases.mp3');
+            startTimer();
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            clearInterval(timer);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            clearInterval(timer);
+            currentPhase = 1;
+            phaseLabel.textContent = `Fase 1 de 4`;
+            updateTimerDisplay(0);
+        });
+
+        saveExperienceBtn.addEventListener('click', saveExperience);
+        generatePdfBtn.addEventListener('click', generatePDF);
+    </script>
+</body>
+</html>
